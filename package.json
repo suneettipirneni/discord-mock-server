@@ -1,9 +1,9 @@
 {
   "name": "discord-mock-server",
-  "version": "0.1.0",
+  "version": "3.1.1",
   "description": "A mock server for stubbing out the discord gateway api.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "start": "npm run start:dev",
     "start:dev": "NODE_ENV=development nodemon",
