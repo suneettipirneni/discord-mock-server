@@ -1,14 +1,19 @@
 import {
   APIApplication,
   APIGuild,
-  APIMessage,
   APIUser,
+  GatewayDispatchEvents,
+  GatewayOpcodes,
 } from 'discord-api-types/v9';
-import { GatewayDispatchEvents, GatewayOpcodes } from 'discord.js';
 import { RawData, Server, ServerOptions, WebSocket } from 'ws';
 import { DataStore } from '../DataStore';
 
-function createDispatchData(
+/**
+ * Creates an gateway-compatible dispatch payload
+ * @param event The event type of the dispatch
+ * @param data The associated data of the event
+ */
+export function createDispatchData(
   event: GatewayDispatchEvents,
   data: Record<string, unknown>
 ) {
@@ -19,11 +24,23 @@ function createDispatchData(
 }
 
 export interface MockGatewayOptions extends ServerOptions {
+  /**
+   * The guilds to send the bot after the IDENTIFY event
+   */
   guilds?: APIGuild[];
+  /**
+   * The user associated with the connecting client
+   */
   user?: APIUser;
+  /**
+   * The application associated with the connection client
+   */
   application?: APIApplication;
 }
 
+/**
+ * Represents a mock discord gateway
+ */
 export class MockGateway {
   private server: Server;
   private client!: WebSocket;
@@ -32,6 +49,10 @@ export class MockGateway {
   private application?: APIApplication;
   private store: DataStore;
 
+  /**
+   * @param store The data store used to store in-memory data
+   * @param options The options for this mock gateway
+   */
   public constructor(store: DataStore, options?: MockGatewayOptions) {
     this.server = new Server(options);
     this.guilds = options?.guilds ?? [];
@@ -46,6 +67,9 @@ export class MockGateway {
     });
   }
 
+  /**
+   * The host for this gateway server
+   */
   public get WSURL() {
     return 'localhost:8080';
   }
@@ -60,7 +84,7 @@ export class MockGateway {
     });
   }
 
-  private identify(client: WebSocket, data: Record<string, unknown>) {
+  private identify(client: WebSocket) {
     client.send(
       JSON.stringify(
         createDispatchData(GatewayDispatchEvents.Ready, {
@@ -84,7 +108,7 @@ export class MockGateway {
     const data = JSON.parse(payload.toString());
     switch (data.op) {
       case GatewayOpcodes.Identify:
-        this.identify(client, data);
+        this.identify(client);
         break;
       case GatewayOpcodes.Heartbeat:
         this.ACKHeartBeat(client);
@@ -104,26 +128,42 @@ export class MockGateway {
     this.client = client;
   }
 
-  public async dispatchMessage(message: APIMessage) {
+  /**
+   * Sends a dispatch (event) from this gateway
+   * @param event The event type to dispatch
+   * @param data The associated data to send with the event
+   */
+  public async dispatch(
+    event: GatewayDispatchEvents,
+    data: Record<string, unknown>
+  ) {
     return new Promise<void>((resolve, reject) => {
       this.client.send(
-        JSON.stringify(
-          createDispatchData(GatewayDispatchEvents.MessageCreate, {
-            ...message,
-          })
-        ),
+        JSON.stringify(createDispatchData(event, data)),
         (err) => {
-          if (!err) {
-            resolve();
+          if (err) {
+            reject(err);
+            return;
           }
 
-          reject(err);
+          resolve();
         }
       );
     });
   }
 
-  public close() {
-    this.server.close();
+  /**
+   * Shuts this mock gateway down
+   */
+  public async close() {
+    return new Promise<void>((resolve, reject) => {
+      this.server.close((err) => {
+        if (err) {
+          return reject(err);
+        }
+
+        resolve();
+      });
+    });
   }
 }

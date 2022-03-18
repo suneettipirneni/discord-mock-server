@@ -4,8 +4,8 @@ import {
   APIGuild,
   APIGuildChannel,
   APIMessage,
+  ChannelType,
 } from 'discord-api-types/v9';
-import { ChannelType } from 'discord.js';
 
 export class DataStore {
   private readonly guilds: Collection<string, APIGuild> = new Collection();
